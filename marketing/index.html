@@ -1,0 +1,1693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Real Agent Insight — Client Discovery & Intelligence</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Syne:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* ─── TOKENS ─────────────────────────────────────────────── */
+    :root {
+      --ink:        #07070a;
+      --ink-2:      #0d0d12;
+      --ink-3:      #141419;
+      --gold:       #c8a96e;
+      --gold-dim:   rgba(200,169,110,0.22);
+      --gold-glow:  rgba(200,169,110,0.07);
+      --gold-line:  rgba(200,169,110,0.35);
+      --cream:      #ede8df;
+      --cream-60:   rgba(237,232,223,0.6);
+      --cream-20:   rgba(237,232,223,0.2);
+      --cream-08:   rgba(237,232,223,0.08);
+      --cream-04:   rgba(237,232,223,0.04);
+      --green:      #7dd3a8;
+      --red:        #f07a7a;
+      --blue:       #60a5fa;
+      --ff-display: 'Cormorant', Georgia, serif;
+      --ff-ui:      'Syne', sans-serif;
+      --ease-out:   cubic-bezier(0.25,0.46,0.45,0.94);
+    }
+
+    /* ─── RESET ──────────────────────────────────────────────── */
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--ink);
+      color: var(--cream);
+      font-family: var(--ff-ui);
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+
+    /* Grain overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 9999;
+      opacity: 0.025;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+
+    ::-webkit-scrollbar { width: 3px; }
+    ::-webkit-scrollbar-track { background: var(--ink); }
+    ::-webkit-scrollbar-thumb { background: var(--gold-dim); border-radius: 2px; }
+
+    /* ─── NAV ────────────────────────────────────────────────── */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.75rem 3.5rem;
+      transition: padding 0.4s var(--ease-out), background 0.4s, border-color 0.4s;
+      border-bottom: 1px solid transparent;
+    }
+
+    nav.scrolled {
+      padding: 1.1rem 3.5rem;
+      background: rgba(7,7,10,0.85);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border-bottom-color: var(--cream-08);
+    }
+
+    .logo {
+      font-family: var(--ff-display);
+      font-size: 1.2rem;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-decoration: none;
+      color: var(--cream);
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+    }
+
+    .logo-pip {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: var(--gold);
+      box-shadow: 0 0 10px var(--gold), 0 0 20px rgba(200,169,110,0.4);
+      flex-shrink: 0;
+    }
+
+    .logo span { color: var(--gold); }
+
+    .nav-links {
+      display: flex;
+      gap: 2.75rem;
+      list-style: none;
+    }
+
+    .nav-links a {
+      color: var(--cream-60);
+      text-decoration: none;
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover { color: var(--cream); }
+
+    .nav-btn {
+      padding: 0.55rem 1.4rem;
+      border: 1px solid var(--gold-dim);
+      background: transparent;
+      color: var(--gold);
+      font-family: var(--ff-ui);
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    .nav-btn:hover { background: var(--gold-dim); border-color: var(--gold); }
+
+    /* ─── HERO ───────────────────────────────────────────────── */
+    .hero {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Architectural grid */
+    .hero::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(200,169,110,0.022) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(200,169,110,0.022) 1px, transparent 1px);
+      background-size: 64px 64px;
+      pointer-events: none;
+    }
+
+    .hero-left {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 3.5rem 2rem 2rem 1.75rem;
+      position: relative;
+      z-index: 2;
+    }
+
+    .hero-left::before {
+      content: '';
+      position: absolute;
+      top: 25%; bottom: 25%;
+      left: 0; width: 1px;
+      background: linear-gradient(to bottom, transparent, var(--gold), transparent);
+      opacity: 0.4;
+    }
+
+    .hero-eyebrow {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      font-size: 0.68rem;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 1rem;
+      opacity: 0;
+      animation: slideUp 0.9s var(--ease-out) 0.2s forwards;
+    }
+
+    .hero-eyebrow::before {
+      content: '';
+      width: 2.5rem; height: 1px;
+      background: var(--gold);
+      flex-shrink: 0;
+    }
+
+    .hero-h1 {
+      font-family: var(--ff-display);
+      font-size: clamp(3.4rem, 5vw, 5.8rem);
+      font-weight: 300;
+      line-height: 0.95;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.875rem;
+      opacity: 0;
+      animation: slideUp 0.9s var(--ease-out) 0.36s forwards;
+    }
+
+    .hero-h1 em { font-style: italic; color: var(--gold); }
+
+    .hero-desc {
+      font-size: 0.88rem;
+      color: var(--cream-60);
+      line-height: 1.75;
+      max-width: 40ch;
+      margin-bottom: 1.25rem;
+      opacity: 0;
+      animation: slideUp 0.9s var(--ease-out) 0.52s forwards;
+    }
+
+    .hero-ctas {
+      display: flex;
+      gap: 0.75rem;
+      opacity: 0;
+      animation: slideUp 0.9s var(--ease-out) 0.66s forwards;
+    }
+
+    .btn-primary {
+      padding: 0.85rem 2rem;
+      background: var(--gold);
+      border: 1px solid var(--gold);
+      color: var(--ink);
+      font-family: var(--ff-ui);
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-block;
+      transition: background 0.2s;
+    }
+
+    .btn-primary:hover { background: #d4b87e; }
+
+    .btn-ghost {
+      padding: 0.85rem 2rem;
+      background: transparent;
+      border: 1px solid var(--cream-20);
+      color: var(--cream-60);
+      font-family: var(--ff-ui);
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-block;
+      transition: border-color 0.2s, color 0.2s;
+    }
+
+    .btn-ghost:hover { border-color: var(--cream-60); color: var(--cream); }
+
+    .hero-kpis {
+      display: flex;
+      gap: 2.75rem;
+      margin-top: 1rem;
+      opacity: 0;
+      animation: slideUp 0.9s var(--ease-out) 0.82s forwards;
+    }
+
+    .kpi-val {
+      font-family: var(--ff-display);
+      font-size: 2.2rem;
+      font-weight: 300;
+      line-height: 1;
+    }
+
+    .kpi-label {
+      font-size: 0.62rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--cream-60);
+      margin-top: 0.3rem;
+    }
+
+    /* ─── HERO RIGHT — App UI Mockup ─────────────────────────── */
+    .hero-right {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3.5rem 1.5rem 2rem;
+      z-index: 2;
+      overflow: hidden;
+    }
+
+    /* Soft radial glow behind mockup */
+    .hero-right::before {
+      content: '';
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 500px; height: 500px;
+      background: radial-gradient(ellipse at center, rgba(200,169,110,0.08) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .app-mockup {
+      width: 100%;
+      max-width: 520px;
+      background: rgba(13,13,18,0.9);
+      border: 1px solid var(--cream-08);
+      border-radius: 4px;
+      overflow: hidden;
+      box-shadow: 0 32px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(200,169,110,0.1);
+      opacity: 0;
+      animation: slideUp 1s var(--ease-out) 0.7s forwards;
+    }
+
+    /* Titlebar */
+    .mock-titlebar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.7rem 1rem;
+      background: rgba(7,7,10,0.8);
+      border-bottom: 1px solid var(--cream-08);
+    }
+
+    .mock-dots { display: flex; gap: 5px; }
+    .mock-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+    }
+    .mock-dot.r { background: #f07a7a; }
+    .mock-dot.y { background: #fbbf24; }
+    .mock-dot.g { background: #7dd3a8; }
+
+    .mock-title-text {
+      font-size: 0.62rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--cream-60);
+    }
+
+    .mock-client-badge {
+      font-size: 0.6rem;
+      padding: 0.2rem 0.55rem;
+      background: var(--gold-glow);
+      border: 1px solid var(--gold-line);
+      color: var(--gold);
+      letter-spacing: 0.1em;
+    }
+
+    /* App body */
+    .mock-body {
+      display: grid;
+      grid-template-columns: 140px 1fr;
+      min-height: 300px;
+    }
+
+    /* Sidebar */
+    .mock-sidebar {
+      border-right: 1px solid var(--cream-08);
+      padding: 0.75rem 0;
+    }
+
+    .mock-nav-item {
+      padding: 0.45rem 0.85rem;
+      font-size: 0.65rem;
+      letter-spacing: 0.08em;
+      color: var(--cream-60);
+      cursor: default;
+      border-left: 2px solid transparent;
+      transition: all 0.15s;
+    }
+
+    .mock-nav-item.active {
+      color: var(--gold);
+      border-left-color: var(--gold);
+      background: var(--gold-glow);
+    }
+
+    .mock-nav-divider {
+      height: 1px;
+      background: var(--cream-08);
+      margin: 0.4rem 0.5rem;
+    }
+
+    .mock-nav-label {
+      padding: 0.5rem 0.85rem 0.2rem;
+      font-size: 0.55rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: rgba(237,232,223,0.3);
+    }
+
+    /* Main content */
+    .mock-main {
+      padding: 1rem;
+    }
+
+    .mock-category-tag {
+      font-size: 0.58rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 0.4rem;
+      opacity: 0.8;
+    }
+
+    .mock-question {
+      font-family: var(--ff-display);
+      font-size: 0.95rem;
+      font-weight: 400;
+      line-height: 1.4;
+      color: var(--cream);
+      margin-bottom: 0.85rem;
+    }
+
+    .mock-progress {
+      display: flex;
+      gap: 3px;
+      margin-bottom: 0.85rem;
+    }
+
+    .mock-prog-dot {
+      width: 18px; height: 2px;
+      background: var(--cream-08);
+      border-radius: 1px;
+    }
+
+    .mock-prog-dot.done { background: var(--gold); opacity: 0.7; }
+    .mock-prog-dot.current { background: var(--gold); }
+
+    .mock-recorder {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      padding: 0.6rem 0.85rem;
+      background: var(--cream-04);
+      border: 1px solid var(--cream-08);
+      margin-bottom: 0.75rem;
+    }
+
+    .mock-rec-btn {
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: #f07a7a;
+      box-shadow: 0 0 10px rgba(240,122,122,0.4);
+      flex-shrink: 0;
+    }
+
+    .mock-rec-text {
+      font-size: 0.62rem;
+      color: var(--cream-60);
+    }
+
+    .mock-transcript {
+      padding: 0.6rem 0.75rem;
+      background: rgba(0,0,0,0.3);
+      border-left: 2px solid var(--gold);
+      margin-bottom: 0.6rem;
+    }
+
+    .mock-transcript-label {
+      font-size: 0.55rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 0.25rem;
+    }
+
+    .mock-transcript-text {
+      font-size: 0.65rem;
+      color: var(--cream-60);
+      line-height: 1.5;
+    }
+
+    .mock-nav-btns {
+      display: flex;
+      gap: 0.4rem;
+      margin-top: 0.5rem;
+    }
+
+    .mock-btn {
+      flex: 1;
+      padding: 0.35rem;
+      background: var(--cream-04);
+      border: 1px solid var(--cream-08);
+      color: var(--cream-60);
+      font-size: 0.6rem;
+      text-align: center;
+      letter-spacing: 0.05em;
+    }
+
+    .mock-btn.next {
+      background: var(--gold-glow);
+      border-color: var(--gold-line);
+      color: var(--gold);
+    }
+
+    /* ─── TICKER ─────────────────────────────────────────────── */
+    .ticker-belt {
+      overflow: hidden;
+      border-top: 1px solid var(--cream-08);
+      border-bottom: 1px solid var(--cream-08);
+      padding: 0.6rem 0;
+      position: relative;
+    }
+
+    .ticker-belt::before, .ticker-belt::after {
+      content: '';
+      position: absolute;
+      top: 0; bottom: 0;
+      width: 5rem; z-index: 2;
+      pointer-events: none;
+    }
+
+    .ticker-belt::before { left: 0; background: linear-gradient(to right, var(--ink), transparent); }
+    .ticker-belt::after  { right: 0; background: linear-gradient(to left, var(--ink), transparent); }
+
+    .ticker-track {
+      display: flex;
+      animation: roll 35s linear infinite;
+      width: max-content;
+    }
+
+    .tick {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0 2.25rem;
+      font-size: 0.72rem;
+      color: var(--cream-60);
+      white-space: nowrap;
+      border-right: 1px solid var(--cream-08);
+    }
+
+    .tick .pip { width: 4px; height: 4px; border-radius: 50%; background: var(--gold); flex-shrink: 0; }
+    .tick .count { color: var(--gold); font-weight: 600; }
+
+    @keyframes roll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+
+    /* ─── SECTION SHARED ─────────────────────────────────────── */
+    section {
+      padding: 1.5rem 3.5rem;
+    }
+
+    .section-eyebrow {
+      font-size: 0.65rem;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .section-eyebrow::before {
+      content: '';
+      width: 2rem; height: 1px;
+      background: var(--gold);
+    }
+
+    .section-title {
+      font-family: var(--ff-display);
+      font-size: clamp(2.4rem, 4vw, 3.8rem);
+      font-weight: 300;
+      letter-spacing: -0.01em;
+      line-height: 1.05;
+      margin-bottom: 0.375rem;
+    }
+
+    .section-title em { font-style: italic; color: var(--gold); }
+
+    .section-desc {
+      font-size: 0.88rem;
+      color: var(--cream-60);
+      line-height: 1.75;
+      max-width: 52ch;
+      margin-bottom: 0.875rem;
+    }
+
+    /* ─── PLATFORM STATS ─────────────────────────────────────── */
+    .stats-strip {
+      margin: 0 3.5rem 0.75rem;
+      padding: 0.75rem 1rem;
+      background: var(--cream-04);
+      border: 1px solid var(--cream-08);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1.5rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stats-strip::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; height: 1px;
+      background: linear-gradient(to right, transparent 0%, var(--gold) 50%, transparent 100%);
+    }
+
+    .stat-item { text-align: center; }
+
+    .stat-val {
+      font-family: var(--ff-display);
+      font-size: 2rem;
+      font-weight: 300;
+      color: var(--cream);
+      line-height: 1;
+    }
+
+    .stat-lbl {
+      font-size: 0.62rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--cream-60);
+      margin-top: 0.25rem;
+    }
+
+    .stat-sub {
+      font-size: 0.65rem;
+      margin-top: 0.15rem;
+      color: var(--green);
+    }
+
+    .stat-div { width: 1px; height: 36px; background: var(--cream-08); flex-shrink: 0; }
+
+    /* ─── HOW IT WORKS ───────────────────────────────────────── */
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5px;
+      background: var(--cream-08);
+      margin-top: 0;
+    }
+
+    .step {
+      background: var(--ink-2);
+      padding: 0.875rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .step::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; height: 1px;
+      background: linear-gradient(to right, var(--gold), transparent);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .step:hover::before { opacity: 0.6; }
+
+    .step-num {
+      font-family: var(--ff-display);
+      font-size: 3rem;
+      font-weight: 300;
+      color: var(--cream);
+      line-height: 1;
+      margin-bottom: 0.375rem;
+    }
+
+    .step-title {
+      font-family: var(--ff-display);
+      font-size: 1.5rem;
+      font-weight: 400;
+      color: var(--cream);
+      margin-bottom: 0.325rem;
+    }
+
+    .step-desc {
+      font-size: 0.82rem;
+      color: var(--cream-60);
+      line-height: 1.7;
+    }
+
+    /* ─── DOMAIN GRID ────────────────────────────────────────── */
+    .domains-header {
+      margin-bottom: 0;
+    }
+
+    .domains-meta {
+      font-size: 0.73rem;
+      color: var(--cream-60);
+      letter-spacing: 0.07em;
+    }
+
+    .domains-filter {
+      display: flex;
+      gap: 0.55rem;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+
+    .d-chip {
+      padding: 0.4rem 1.1rem;
+      border: 1px solid var(--cream-08);
+      background: transparent;
+      color: var(--cream-60);
+      font-family: var(--ff-ui);
+      font-size: 0.73rem;
+      font-weight: 500;
+      letter-spacing: 0.07em;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .d-chip::after {
+      content: '';
+      position: absolute; inset: 0;
+      background: var(--gold-glow);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .d-chip:hover::after, .d-chip.on::after { opacity: 1; }
+    .d-chip:hover, .d-chip.on { border-color: var(--gold-line); color: var(--gold); }
+    .d-chip.on { border-color: var(--gold); }
+
+    .domain-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1.5px;
+      background: var(--cream-08);
+    }
+
+    /* ─── DOMAIN CARD ────────────────────────────────────────── */
+    .d-card {
+      background: var(--ink-2);
+      padding: 0.625rem 0.75rem;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      opacity: 0;
+      transform: translateY(16px);
+      transition: opacity 0.45s var(--ease-out),
+                  transform 0.45s var(--ease-out),
+                  box-shadow 0.3s ease;
+    }
+
+    .d-card.in { opacity: 1; transform: none; }
+
+    .d-card:hover {
+      z-index: 2;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.6), 0 0 0 1px rgba(200,169,110,0.25);
+    }
+
+    .d-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 1.5rem; right: 1.5rem;
+      height: 1px;
+      background: linear-gradient(to right, var(--gold), transparent);
+      opacity: 0.3;
+      transition: opacity 0.3s;
+    }
+
+    .d-card:hover::before { opacity: 0.75; }
+
+    /* Scan-line */
+    .d-scan {
+      position: absolute;
+      left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(to right, transparent, var(--gold), transparent);
+      top: -5%; opacity: 0; pointer-events: none;
+    }
+
+    .d-card:hover .d-scan {
+      animation: scan 0.9s ease-out 0.05s forwards;
+    }
+
+    @keyframes scan {
+      0%   { top: 0%;   opacity: 0.8; }
+      100% { top: 110%; opacity: 0; }
+    }
+
+    .d-count {
+      font-family: var(--ff-display);
+      font-size: 2.4rem;
+      font-weight: 300;
+      color: rgba(200,169,110,0.15);
+      line-height: 1;
+      margin-bottom: 0.4rem;
+    }
+
+    .d-name {
+      font-size: 0.65rem;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 0.6rem;
+    }
+
+    .d-title {
+      font-family: var(--ff-display);
+      font-size: 1.25rem;
+      font-weight: 400;
+      color: var(--cream);
+      line-height: 1.2;
+      margin-bottom: 0.85rem;
+    }
+
+    .d-sample {
+      font-size: 0.76rem;
+      color: var(--cream-60);
+      line-height: 1.6;
+      font-style: italic;
+      border-left: 1.5px solid var(--gold-line);
+      padding-left: 0.75rem;
+    }
+
+    /* ─── LOCATION SECTION ───────────────────────────────────── */
+    .location-feature {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2.5rem;
+      align-items: center;
+    }
+
+    .location-visual {
+      position: relative;
+    }
+
+    .location-map-mock {
+      aspect-ratio: 4/3;
+      background: #1d2c4d;
+      border: 1px solid var(--cream-08);
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Faux map grid */
+    .location-map-mock::before {
+      content: '';
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(142,195,185,0.08) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(142,195,185,0.08) 1px, transparent 1px);
+      background-size: 32px 32px;
+    }
+
+    /* "Roads" */
+    .map-road-h {
+      position: absolute;
+      left: 0; right: 0;
+      height: 2px;
+      background: rgba(48,74,125,0.9);
+    }
+
+    .map-road-v {
+      position: absolute;
+      top: 0; bottom: 0;
+      width: 2px;
+      background: rgba(48,74,125,0.9);
+    }
+
+    /* Place markers */
+    .map-pin {
+      position: absolute;
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    .map-pin::after {
+      content: attr(data-label);
+      position: absolute;
+      top: -18px; left: 50%;
+      transform: translateX(-50%);
+      font-size: 7px;
+      font-family: var(--ff-ui);
+      color: #fff;
+      white-space: nowrap;
+      font-weight: 600;
+    }
+
+    .map-center {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: #38bdf8;
+      box-shadow: 0 0 0 4px rgba(56,189,248,0.2);
+    }
+
+    /* Info overlay card on map */
+    .map-info-card {
+      position: absolute;
+      bottom: 1rem; right: 1rem;
+      padding: 0.7rem 0.9rem;
+      background: rgba(7,7,10,0.85);
+      backdrop-filter: blur(8px);
+      border: 1px solid var(--cream-08);
+      border-top: 1.5px solid var(--gold);
+    }
+
+    .map-info-label {
+      font-size: 0.56rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 0.2rem;
+    }
+
+    .map-info-val {
+      font-family: var(--ff-display);
+      font-size: 1.2rem;
+      color: var(--cream);
+      line-height: 1;
+    }
+
+    .map-info-sub { font-size: 0.6rem; color: var(--cream-60); margin-top: 0.15rem; }
+
+    .location-features-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.425rem;
+      margin-top: 0.625rem;
+    }
+
+    .loc-feat {
+      display: flex;
+      gap: 1rem;
+      align-items: flex-start;
+    }
+
+    .loc-feat-icon {
+      width: 32px; height: 32px;
+      border: 1px solid var(--gold-line);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.85rem;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .loc-feat-title {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--cream);
+      margin-bottom: 0.2rem;
+      letter-spacing: 0.04em;
+    }
+
+    .loc-feat-desc {
+      font-size: 0.76rem;
+      color: var(--cream-60);
+      line-height: 1.6;
+    }
+
+    /* ─── HOMES / LISTINGS ───────────────────────────────────── */
+    .homes-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 1rem;
+    }
+
+    .homes-title {
+      font-family: var(--ff-display);
+      font-size: 2.4rem;
+      font-weight: 300;
+      letter-spacing: -0.01em;
+    }
+
+    .homes-meta {
+      font-size: 0.73rem;
+      color: var(--cream-60);
+    }
+
+    .homes-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5px;
+      background: var(--cream-08);
+    }
+
+    /* ─── HOME CARD ──────────────────────────────────────────── */
+    .home-card {
+      background: var(--ink-2);
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      opacity: 0;
+      transform: translateY(16px);
+      transition: opacity 0.45s var(--ease-out),
+                  transform 0.45s var(--ease-out),
+                  box-shadow 0.3s ease;
+    }
+
+    .home-card.in { opacity: 1; transform: none; }
+
+    .home-card:hover {
+      z-index: 2;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.7), 0 0 0 1px rgba(200,169,110,0.28);
+    }
+
+    .home-img {
+      position: relative;
+      aspect-ratio: 16/10;
+      overflow: hidden;
+    }
+
+    .home-img img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      filter: brightness(0.82) saturate(0.85);
+      transition: transform 0.75s var(--ease-out), filter 0.5s ease;
+      display: block;
+    }
+
+    .home-card:hover .home-img img {
+      transform: scale(1.07);
+      filter: brightness(0.95) saturate(1.0);
+    }
+
+    .home-scan {
+      position: absolute;
+      left: 0; right: 0; height: 1.5px;
+      background: linear-gradient(to right, transparent 0%, var(--gold) 50%, transparent 100%);
+      top: -5%; opacity: 0; pointer-events: none;
+    }
+
+    .home-card:hover .home-scan { animation: scan 1s ease-out 0.05s forwards; }
+
+    .home-badge {
+      position: absolute;
+      top: 0.85rem; left: 0.85rem;
+      padding: 0.25rem 0.6rem;
+      background: rgba(7,7,10,0.8);
+      backdrop-filter: blur(6px);
+      font-size: 0.6rem;
+      font-weight: 600;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--gold);
+      border: 1px solid rgba(200,169,110,0.28);
+    }
+
+    .home-badge.sim {
+      color: #fbbf24;
+      border-color: rgba(251,191,36,0.3);
+    }
+
+    .home-fav {
+      position: absolute;
+      top: 0.85rem; right: 0.85rem;
+      width: 28px; height: 28px;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(7,7,10,0.62);
+      backdrop-filter: blur(6px);
+      border: 1px solid var(--cream-08);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .home-fav:hover { border-color: var(--gold-dim); background: rgba(200,169,110,0.1); }
+
+    .home-fav svg {
+      width: 12px; height: 12px;
+      stroke: var(--cream-60); stroke-width: 1.6; fill: none;
+      transition: all 0.2s;
+    }
+
+    .home-fav.on svg { stroke: var(--gold); fill: rgba(200,169,110,0.22); }
+
+    .home-body {
+      padding: 1.35rem 1.5rem;
+      position: relative;
+    }
+
+    .home-body::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 1.5rem; right: 1.5rem;
+      height: 1px;
+      background: linear-gradient(to right, var(--gold), transparent);
+      opacity: 0.35;
+      transition: opacity 0.3s;
+    }
+
+    .home-card:hover .home-body::before { opacity: 0.75; }
+
+    .home-zip {
+      font-size: 0.6rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--gold);
+      opacity: 0.75;
+      margin-bottom: 0.4rem;
+    }
+
+    .home-addr {
+      font-family: var(--ff-display);
+      font-size: 1.2rem;
+      font-weight: 400;
+      color: var(--cream);
+      line-height: 1.2;
+      margin-bottom: 0.5rem;
+    }
+
+    .home-price {
+      font-family: var(--ff-display);
+      font-size: 1.65rem;
+      font-weight: 300;
+      color: var(--cream);
+      margin-bottom: 1.1rem;
+    }
+
+    .home-price .pfx {
+      font-family: var(--ff-ui);
+      font-size: 0.72rem;
+      color: var(--cream-60);
+      margin-right: 0.1rem;
+    }
+
+    .home-specs {
+      display: flex;
+      border-top: 1px solid var(--cream-08);
+    }
+
+    .h-spec {
+      flex: 1;
+      padding: 0.65rem 0;
+      text-align: center;
+      border-right: 1px solid var(--cream-08);
+    }
+
+    .h-spec:last-child { border-right: none; }
+    .h-spec-val { font-size: 0.85rem; font-weight: 600; color: var(--cream); }
+    .h-spec-lbl { font-size: 0.56rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--cream-60); margin-top: 0.1rem; }
+
+    .home-cta {
+      display: block;
+      margin: 0.85rem 1.5rem 1.25rem;
+      padding: 0.5rem;
+      text-align: center;
+      border: 1px solid var(--gold-dim);
+      color: var(--gold);
+      font-family: var(--ff-ui);
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      text-decoration: none;
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    .home-cta:hover { background: var(--gold-dim); border-color: var(--gold); }
+
+    /* ─── FOOTER ─────────────────────────────────────────────── */
+    footer {
+      padding: 0.75rem 3.5rem;
+      border-top: 1px solid var(--cream-08);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .footer-logo {
+      font-family: var(--ff-display);
+      font-size: 1rem;
+      font-weight: 500;
+      letter-spacing: 0.16em;
+      color: var(--cream-60);
+    }
+
+    .footer-logo span { color: var(--gold); }
+
+    .footer-legal { font-size: 0.68rem; color: rgba(237,232,223,0.28); letter-spacing: 0.04em; }
+
+    /* ─── ANIMATIONS ─────────────────────────────────────────── */
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(22px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+
+    /* ─── RESPONSIVE ─────────────────────────────────────────── */
+    @media (max-width: 1100px) {
+      .domain-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 900px) {
+      .hero { grid-template-columns: 1fr; }
+      .hero-right { display: none; }
+      .hero-left { padding: 7rem 2rem 4rem; }
+      nav { padding: 1.2rem 2rem; }
+      nav.scrolled { padding: 0.9rem 2rem; }
+      .nav-links { display: none; }
+      .homes-grid { grid-template-columns: 1fr; }
+      .steps { grid-template-columns: 1fr; }
+      .domain-grid { grid-template-columns: 1fr; }
+      .location-feature { grid-template-columns: 1fr; }
+      section { padding: 1rem 1.5rem; }
+      .stats-strip { flex-wrap: wrap; justify-content: center; margin: 0 2rem 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ─── NAV ─────────────────────────────────────────────────── -->
+<nav id="nav">
+  <a href="#" class="logo">
+    <span class="logo-pip"></span>
+    Real Agent <span>Insight</span>
+  </a>
+  <ul class="nav-links">
+    <li><a href="#how">How It Works</a></li>
+    <li><a href="#domains">Question Domains</a></li>
+    <li><a href="#location">Location Research</a></li>
+    <li><a href="#listings">Sample Listings</a></li>
+  </ul>
+  <a href="http://localhost:3000" class="nav-btn">Open Dashboard</a>
+</nav>
+
+<!-- ─── HERO ─────────────────────────────────────────────────── -->
+<section class="hero">
+  <div class="hero-left">
+    <p class="hero-eyebrow">Client Discovery &amp; Intelligence Tool</p>
+    <h1 class="hero-h1">
+      Know Your Client<br>
+      Before You Show<br>
+      <em>the House</em>
+    </h1>
+    <p class="hero-desc">
+      Real Agent Insight captures voice responses across 110 expert questions,
+      maps neighborhoods in real time, and builds precise client profiles —
+      so every showing is a match, not a guess.
+    </p>
+    <div class="hero-ctas">
+      <a href="http://localhost:3000" class="btn-primary">Open Dashboard</a>
+      <a href="#how" class="btn-ghost">See How It Works</a>
+    </div>
+    <div class="hero-kpis">
+      <div>
+        <div class="kpi-val">110</div>
+        <div class="kpi-label">Expert Questions</div>
+      </div>
+      <div>
+        <div class="kpi-val">8</div>
+        <div class="kpi-label">Discovery Domains</div>
+      </div>
+      <div>
+        <div class="kpi-val">100%</div>
+        <div class="kpi-label">Voice-Powered</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- App UI Mockup -->
+  <div class="hero-right">
+    <div class="app-mockup">
+      <div class="mock-titlebar">
+        <div class="mock-dots">
+          <div class="mock-dot r"></div>
+          <div class="mock-dot y"></div>
+          <div class="mock-dot g"></div>
+        </div>
+        <div class="mock-title-text">Real Agent Insight</div>
+        <div class="mock-client-badge">Client: Sarah M.</div>
+      </div>
+      <div class="mock-body">
+        <div class="mock-sidebar">
+          <div class="mock-nav-item active">★ Client Profile</div>
+          <div class="mock-nav-item">📍 Location</div>
+          <div class="mock-nav-divider"></div>
+          <div class="mock-nav-label">Domains</div>
+          <div class="mock-nav-item active" style="color:var(--gold);border-left-color:var(--gold);background:var(--gold-glow)">Financial</div>
+          <div class="mock-nav-item">Family</div>
+          <div class="mock-nav-item">Work</div>
+          <div class="mock-nav-item">Lifestyle</div>
+          <div class="mock-nav-item">Location</div>
+          <div class="mock-nav-item">Property</div>
+          <div class="mock-nav-item">Future</div>
+          <div class="mock-nav-item">Entertainment</div>
+        </div>
+        <div class="mock-main">
+          <div class="mock-category-tag">Financial · Q 3 of 15</div>
+          <div class="mock-progress">
+            <div class="mock-prog-dot done"></div>
+            <div class="mock-prog-dot done"></div>
+            <div class="mock-prog-dot current"></div>
+            <div class="mock-prog-dot"></div>
+            <div class="mock-prog-dot"></div>
+            <div class="mock-prog-dot"></div>
+            <div class="mock-prog-dot"></div>
+          </div>
+          <div class="mock-question">"How much of a down payment are you comfortable making right now?"</div>
+          <div class="mock-recorder">
+            <div class="mock-rec-btn"></div>
+            <div class="mock-rec-text">Listening... (Speak now)</div>
+          </div>
+          <div class="mock-transcript">
+            <div class="mock-transcript-label">Live Transcript</div>
+            <div class="mock-transcript-text">"We have about 20% saved up, maybe a bit more if we sell..."</div>
+          </div>
+          <div class="mock-nav-btns">
+            <div class="mock-btn">Previous</div>
+            <div class="mock-btn next">Next Question →</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── TICKER ────────────────────────────────────────────────── -->
+<div class="ticker-belt">
+  <div class="ticker-track">
+    <div class="tick"><span class="pip"></span>Financial <span class="count">15 questions</span></div>
+    <div class="tick"><span class="pip"></span>Family &amp; Household <span class="count">15 questions</span></div>
+    <div class="tick"><span class="pip"></span>Work &amp; Professional <span class="count">15 questions</span></div>
+    <div class="tick"><span class="pip"></span>Lifestyle &amp; Entertainment <span class="count">15 questions</span></div>
+    <div class="tick"><span class="pip"></span>Location &amp; Commute <span class="count">15 questions</span></div>
+    <div class="tick"><span class="pip"></span>Property Specifics <span class="count">15 questions</span></div>
+    <div class="tick"><span class="pip"></span>Future &amp; Misc <span class="count">10 questions</span></div>
+    <div class="tick"><span class="pip"></span>Entertainment <span class="count">10 questions</span></div>
+    <div class="tick"><span class="pip"></span>Voice Recording · Real-time Transcription · AI Summaries</div>
+    <div class="tick"><span class="pip"></span>Financial <span class="count">15 questions</span></div>
+    <div class="tick"><span class="pip"></span>Family &amp; Household <span class="count">15 questions</span></div>
+    <div class="tick"><span class="pip"></span>Work &amp; Professional <span class="count">15 questions</span></div>
+    <div class="tick"><span class="pip"></span>Lifestyle &amp; Entertainment <span class="count">15 questions</span></div>
+    <div class="tick"><span class="pip"></span>Location &amp; Commute <span class="count">15 questions</span></div>
+    <div class="tick"><span class="pip"></span>Property Specifics <span class="count">15 questions</span></div>
+    <div class="tick"><span class="pip"></span>Future &amp; Misc <span class="count">10 questions</span></div>
+    <div class="tick"><span class="pip"></span>Entertainment <span class="count">10 questions</span></div>
+    <div class="tick"><span class="pip"></span>Voice Recording · Real-time Transcription · AI Summaries</div>
+  </div>
+</div>
+
+<!-- ─── HOW IT WORKS ──────────────────────────────────────────── -->
+<section id="how" style="padding-bottom: 0;">
+  <p class="section-eyebrow">Workflow</p>
+  <h2 class="section-title">Built for the<br><em>Modern Agent</em></h2>
+  <p class="section-desc">Three steps from first meeting to fully-qualified client profile — capturing every nuance of what your buyer actually wants.</p>
+</section>
+<div class="steps" style="margin: 0 3.5rem 1.25rem;">
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-title">Create Client Profile</div>
+    <p class="step-desc">Sign in and create a profile for each buyer — name, age, contact info. All data is stored locally and tied to that client session.</p>
+  </div>
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-title">Conduct Voice Q&A</div>
+    <p class="step-desc">Walk through 110 questions across 8 domains. Use voice recording or type responses. Live transcription captures every detail in real time.</p>
+  </div>
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-title">Research &amp; Analyze</div>
+    <p class="step-desc">Search any ZIP code to explore the neighborhood on Google Maps, review homes, check schools and crime data, and generate a full client profile summary.</p>
+  </div>
+</div>
+
+<!-- ─── PLATFORM STATS ─────────────────────────────────────────── -->
+<div class="stats-strip" style="margin-bottom: 1.25rem;">
+  <div class="stat-item">
+    <div class="stat-val">110</div>
+    <div class="stat-lbl">Expert Questions</div>
+    <div class="stat-sub">Curated by agents, for agents</div>
+  </div>
+  <div class="stat-div"></div>
+  <div class="stat-item">
+    <div class="stat-val">8</div>
+    <div class="stat-lbl">Discovery Domains</div>
+    <div class="stat-sub">Financial through Entertainment</div>
+  </div>
+  <div class="stat-div"></div>
+  <div class="stat-item">
+    <div class="stat-val">Google</div>
+    <div class="stat-lbl">Maps Integration</div>
+    <div class="stat-sub">Places, Street View, Distance Matrix</div>
+  </div>
+  <div class="stat-div"></div>
+  <div class="stat-item">
+    <div class="stat-val">Live</div>
+    <div class="stat-lbl">Voice Transcription</div>
+    <div class="stat-sub">Web Speech API · No plugins needed</div>
+  </div>
+  <div class="stat-div"></div>
+  <div class="stat-item">
+    <div class="stat-val">AI</div>
+    <div class="stat-lbl">Profile Summaries</div>
+    <div class="stat-sub">Instant insight per client</div>
+  </div>
+</div>
+
+<!-- ─── QUESTION DOMAINS ───────────────────────────────────────── -->
+<section id="domains" style="padding-top: 0;">
+  <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:1rem;">
+    <div>
+      <p class="section-eyebrow" style="margin-bottom:0.75rem;">Question Library</p>
+      <h2 class="section-title" style="margin-bottom:0.5rem;">8 Domains.<br><em>110 Questions.</em></h2>
+    </div>
+    <span class="domains-meta">Covering every dimension of a buyer's life</span>
+  </div>
+  <p class="section-desc">From mortgage sensitivity to media room preferences — every domain is engineered to surface intent that a surface-level conversation would miss.</p>
+  <div class="domain-grid" id="domain-grid"></div>
+</section>
+
+<!-- ─── LOCATION RESEARCH ──────────────────────────────────────── -->
+<section id="location">
+  <div class="location-feature">
+    <div>
+      <p class="section-eyebrow">Location Intelligence</p>
+      <h2 class="section-title">Search Any<br><em>ZIP Code</em></h2>
+      <p class="section-desc">Enter a ZIP and the map comes alive — schools, restaurants, parks, and businesses mapped in real time. Favorite locations, then calculate driving distance to any address.</p>
+      <div class="location-features-list">
+        <div class="loc-feat">
+          <div class="loc-feat-icon">◉</div>
+          <div>
+            <div class="loc-feat-title">Interactive Dark Map</div>
+            <div class="loc-feat-desc">Google Maps with custom dark styling, property markers, and Street View. All place markers filterable by category.</div>
+          </div>
+        </div>
+        <div class="loc-feat">
+          <div class="loc-feat-icon">★</div>
+          <div>
+            <div class="loc-feat-title">Favorite &amp; Measure</div>
+            <div class="loc-feat-desc">Save locations to Favorites with one click. Enter any address to calculate driving time and distance to every saved spot.</div>
+          </div>
+        </div>
+        <div class="loc-feat">
+          <div class="loc-feat-icon">✦</div>
+          <div>
+            <div class="loc-feat-title">AI Personalized Suggestions</div>
+            <div class="loc-feat-desc">Claude analyzes voice transcripts to recommend nearby places that match your client's stated lifestyle and priorities.</div>
+          </div>
+        </div>
+        <div class="loc-feat">
+          <div class="loc-feat-icon">▦</div>
+          <div>
+            <div class="loc-feat-title">Housing, Schools &amp; Safety Data</div>
+            <div class="loc-feat-desc">Market trends, school ratings, neighborhood grades, and crime safety scores — all surfaced for any ZIP code searched.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="location-visual">
+      <!-- CSS-rendered faux map -->
+      <div class="location-map-mock">
+        <div class="map-road-h" style="top:35%"></div>
+        <div class="map-road-h" style="top:62%"></div>
+        <div class="map-road-v" style="left:28%"></div>
+        <div class="map-road-v" style="left:60%"></div>
+        <div class="map-road-v" style="left:78%"></div>
+        <div class="map-center"></div>
+        <!-- Schools -->
+        <div class="map-pin" style="top:28%;left:42%;background:#fbbf24;" data-label="School"></div>
+        <div class="map-pin" style="top:55%;left:70%;background:#fbbf24;"></div>
+        <!-- Restaurants -->
+        <div class="map-pin" style="top:44%;left:32%;background:#f87171;" data-label="Restaurant"></div>
+        <div class="map-pin" style="top:68%;left:55%;background:#f87171;"></div>
+        <!-- Parks -->
+        <div class="map-pin" style="top:38%;left:72%;background:#4ade80;" data-label="Park"></div>
+        <!-- Favorites -->
+        <div class="map-pin" style="top:20%;left:55%;background:#fbbf24;box-shadow:0 0 8px #fbbf24;" data-label="★ Saved"></div>
+        <div class="map-info-card">
+          <div class="map-info-label">Area Explorer · ZIP 90210</div>
+          <div class="map-info-val">Beverly Hills</div>
+          <div class="map-info-sub">Schools · Restaurants · Amenities · Businesses</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── SAMPLE LISTINGS ────────────────────────────────────────── -->
+<section id="listings" style="padding-top: 0;">
+  <div class="homes-header">
+    <h2 class="homes-title">Sample Listings</h2>
+    <span class="homes-meta">From the app's built-in property data</span>
+  </div>
+  <div class="homes-grid" id="homes-grid"></div>
+</section>
+
+<!-- ─── FOOTER ────────────────────────────────────────────────── -->
+<footer>
+  <div class="footer-logo">Real Agent <span>Insight</span></div>
+  <div class="footer-legal">Client Discovery &amp; Intelligence Tool · Built for Modern Agents</div>
+  <div class="footer-legal">
+    <a href="http://localhost:3000" style="color:var(--gold);text-decoration:none;letter-spacing:0.05em;">Open Dashboard →</a>
+  </div>
+</footer>
+
+<script>
+  /* ─── DOMAINS ────────────────────────────────────────────────── */
+  const DOMAINS = [
+    {
+      key: 'Financial', count: 15,
+      title: 'Financial Readiness',
+      sample: '"What is your absolute maximum price point where you would walk away?"',
+      desc: 'Budget, mortgage pre-approval, down payment, HOA tolerance, closing costs'
+    },
+    {
+      key: 'Family', count: 15,
+      title: 'Family & Household',
+      sample: '"Are specific school districts a top priority for your home search?"',
+      desc: 'Occupants, children, pets, multi-generational needs, bedroom requirements'
+    },
+    {
+      key: 'Work', count: 15,
+      title: 'Work & Professional',
+      sample: '"Do you or your partner work from home remotely?"',
+      desc: 'Remote work, commute limits, home office, fiber internet, client visits'
+    },
+    {
+      key: 'Lifestyle', count: 15,
+      title: 'Lifestyle & Priorities',
+      sample: '"Is walkability to coffee shops, restaurants, or parks important?"',
+      desc: 'Entertaining, gardening, pool, gym, smart home, outdoor kitchen, views'
+    },
+    {
+      key: 'Location', count: 15,
+      title: 'Location & Commute',
+      sample: '"Do you prefer an urban, suburban, or rural setting?"',
+      desc: 'Radius from work, transit access, cul-de-sac, gated community, views'
+    },
+    {
+      key: 'Property', count: 15,
+      title: 'Property Specifics',
+      sample: '"Do you prefer a single-story ranch or a two-story home?"',
+      desc: 'Square footage, basement, garage, heating systems, flooring, energy efficiency'
+    },
+    {
+      key: 'Future', count: 10,
+      title: 'Future Planning',
+      sample: '"Are you buying with resale value as a primary concern?"',
+      desc: 'Timeline, life changes, rental potential, renovation appetite, deal-breakers'
+    },
+    {
+      key: 'Entertainment', count: 10,
+      title: 'Entertaining Style',
+      sample: '"Do you need acoustic quality for a music room or home theater?"',
+      desc: 'Formal vs. casual, outdoor events, wet bar, smart lighting, "wow factor"'
+    },
+  ];
+
+  /* ─── HOMES ──────────────────────────────────────────────────── */
+  const HOMES = [
+    {
+      zip: '90210', city: 'Beverly Hills, CA',
+      address: '2533 Benedict Canyon Dr',
+      price: 3250000, beds: 3, baths: 4, sqft: 2644,
+      badge: 'Active', sim: false,
+      url: 'https://www.zillow.com/homedetails/2533-Benedict-Canyon-Dr-Beverly-Hills-CA-90210/20539343_zpid/',
+      img: 'https://images.unsplash.com/photo-1572120360610-d971b9d7767c?auto=format&fit=crop&w=800&q=80'
+    },
+    {
+      zip: '90210', city: 'Beverly Hills, CA',
+      address: '9626 Highridge Dr',
+      price: 4888000, beds: 5, baths: 5, sqft: 4905,
+      badge: 'Active', sim: false,
+      url: 'https://www.zillow.com/homedetails/9626-Highridge-Dr-Beverly-Hills-CA-90210/20531557_zpid/',
+      img: 'https://images.unsplash.com/photo-1628624747186-a941c725611b?auto=format&fit=crop&w=800&q=80'
+    },
+    {
+      zip: '90210', city: 'Beverly Hills, CA',
+      address: '9844 Wanda Park Dr',
+      price: 1895000, beds: 4, baths: 2, sqft: 1946,
+      badge: 'Active', sim: false,
+      url: 'https://www.zillow.com/homedetails/9844-Wanda-Park-Dr-Beverly-Hills-CA-90210/20524417_zpid/',
+      img: 'https://images.unsplash.com/photo-1505873242700-f289a29e1e0f?auto=format&fit=crop&w=800&q=80'
+    },
+    {
+      zip: '10001', city: 'New York, NY',
+      address: '50 W 34th St #4B',
+      price: 1250000, beds: 1, baths: 1, sqft: 850,
+      badge: 'Active', sim: false,
+      url: 'https://www.zillow.com/homes/10001_rb/',
+      img: 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=800&q=80'
+    },
+    {
+      zip: '10001', city: 'New York, NY',
+      address: '15 Hudson Yards',
+      price: 3500000, beds: 3, baths: 2, sqft: 1800,
+      badge: 'Active', sim: false,
+      url: 'https://www.zillow.com/homes/10001_rb/',
+      img: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800&q=80'
+    },
+    {
+      zip: '90210', city: 'Beverly Hills, CA',
+      address: '425 N Palm Dr #104',
+      price: 2499000, beds: 1, baths: 2, sqft: 1752,
+      badge: 'Active', sim: false,
+      url: 'https://www.zillow.com/homedetails/425-N-Palm-Dr-104-Beverly-Hills-CA-90210/2053258830_zpid/',
+      img: 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=800&q=80'
+    },
+  ];
+
+  /* ─── HELPERS ────────────────────────────────────────────────── */
+  const fmt = p => '$' + (p >= 1e6
+    ? (p / 1e6).toFixed(2).replace(/\.?0+$/, '') + 'M'
+    : p.toLocaleString());
+
+  const sqftFmt = n => n.toLocaleString();
+
+  /* ─── RENDER DOMAINS ─────────────────────────────────────────── */
+  function renderDomains() {
+    const grid = document.getElementById('domain-grid');
+    grid.innerHTML = DOMAINS.map((d, i) => `
+      <div class="d-card" style="transition-delay:${i * 60}ms">
+        <div class="d-scan"></div>
+        <div class="d-count">${d.count}</div>
+        <div class="d-name">${d.key}</div>
+        <div class="d-title">${d.title}</div>
+        <div class="d-sample">${d.sample}</div>
+      </div>
+    `).join('');
+    requestAnimationFrame(() => {
+      document.querySelectorAll('.d-card').forEach(c => requestAnimationFrame(() => c.classList.add('in')));
+    });
+  }
+
+  /* ─── RENDER HOMES ───────────────────────────────────────────── */
+  function renderHomes() {
+    const grid = document.getElementById('homes-grid');
+    grid.innerHTML = HOMES.map((h, i) => `
+      <div class="home-card" style="transition-delay:${i * 70}ms">
+        <div class="home-img">
+          <img src="${h.img}" alt="${h.address}" loading="lazy">
+          <div class="home-scan"></div>
+          <div class="home-badge${h.sim ? ' sim' : ''}">${h.badge}</div>
+          <button class="home-fav" onclick="event.stopPropagation();this.classList.toggle('on')" aria-label="Save">
+            <svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          </button>
+        </div>
+        <div class="home-body">
+          <p class="home-zip">ZIP ${h.zip} · ${h.city}</p>
+          <h3 class="home-addr">${h.address}</h3>
+          <p class="home-price"><span class="pfx">from </span>${fmt(h.price)}</p>
+          <div class="home-specs">
+            <div class="h-spec"><div class="h-spec-val">${h.beds}</div><div class="h-spec-lbl">Beds</div></div>
+            <div class="h-spec"><div class="h-spec-val">${h.baths}</div><div class="h-spec-lbl">Baths</div></div>
+            <div class="h-spec"><div class="h-spec-val">${sqftFmt(h.sqft)}</div><div class="h-spec-lbl">Sq Ft</div></div>
+          </div>
+        </div>
+        <a href="${h.url}" target="_blank" rel="noopener noreferrer" class="home-cta">View on Zillow →</a>
+      </div>
+    `).join('');
+    requestAnimationFrame(() => {
+      document.querySelectorAll('.home-card').forEach(c => requestAnimationFrame(() => c.classList.add('in')));
+    });
+  }
+
+  /* ─── INTERSECTION OBSERVER for staggered reveals ────────────── */
+  function observeSection(selector, className) {
+    const els = document.querySelectorAll(selector);
+    const obs = new IntersectionObserver(entries => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          e.target.classList.add(className);
+          obs.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.08 });
+    els.forEach(el => obs.observe(el));
+  }
+
+  /* ─── NAV SCROLL ─────────────────────────────────────────────── */
+  window.addEventListener('scroll', () => {
+    document.getElementById('nav').classList.toggle('scrolled', window.scrollY > 40);
+  }, { passive: true });
+
+  /* ─── INIT ───────────────────────────────────────────────────── */
+  renderDomains();
+  renderHomes();
+
+  // Re-trigger card reveals after render
+  setTimeout(() => {
+    observeSection('.d-card', 'in');
+    observeSection('.home-card', 'in');
+    observeSection('.step', 'visible');
+  }, 100);
+</script>
+
+</body>
+</html>

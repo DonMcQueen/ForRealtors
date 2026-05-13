@@ -1,0 +1,1005 @@
+const { useState, useEffect, useRef } = React;
+import { questions } from './data.js';
+
+// --- Components ---
+
+
+const Recorder = ({ onTranscriptUpdate, onRecordingComplete }) => {
+    const [isRecording, setIsRecording] = useState(false);
+    const recognitionRef = useRef(null);
+
+    useEffect(() => {
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognitionRef.current = new SpeechRecognition();
+            recognitionRef.current.continuous = true;
+            recognitionRef.current.interimResults = true;
+
+            recognitionRef.current.onresult = (event) => {
+                let interimTranscript = '';
+                let finalTranscript = '';
+
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript;
+                    } else {
+                        interimTranscript += event.results[i][0].transcript;
+                    }
+                }
+                onTranscriptUpdate(finalTranscript, interimTranscript);
+            };
+
+            recognitionRef.current.onerror = (event) => {
+                console.error('Speech recognition error', event.error);
+                setIsRecording(false);
+            };
+        } else {
+            console.warn("Web Speech API not supported in this browser.");
+        }
+    }, []);
+
+    const toggleRecording = () => {
+        if (isRecording) {
+            recognitionRef.current?.stop();
+            setIsRecording(false);
+            onRecordingComplete();
+        } else {
+            onTranscriptUpdate("", "", true); // Clear previous transcript
+            recognitionRef.current?.start();
+            setIsRecording(true);
+        }
+    };
+
+    return (
+        <div className="recorder-controls">
+            <button
+                className={`record-btn ${isRecording ? 'recording' : ''}`}
+                onClick={toggleRecording}
+                title={isRecording ? "Stop Recording" : "Start Recording"}
+            />
+            <div className="status-text">
+                {isRecording ? "Listening... (Speak now)" : "Click to Record Answer"}
+            </div>
+        </div>
+    );
+};
+
+const LoginView = ({ onLogin }) => {
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+    const [error, setError] = useState("");
+
+    const validatePassword = (pwd) => {
+        // At least 8 chars, 1 uppercase, 1 number, 1 special char
+        const regex = /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*])[A-Za-z\d!@#$%^&*]{8,}$/;
+        return regex.test(pwd);
+    };
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        setError("");
+
+        if (!email || !password) {
+            setError("Please fill in all fields.");
+            return;
+        }
+
+        if (!validatePassword(password)) {
+            setError("Password must be at least 8 characters, include 1 uppercase letter, 1 number, and 1 special character (!@#$%^&*).");
+            return;
+        }
+
+        // Mock successful login
+        onLogin();
+    };
+
+    const handleGoogleLogin = () => {
+        // Mock Google Login
+        onLogin();
+    };
+
+    return (
+        <div className="login-container">
+            <div className="glass-panel login-card">
+                <h1 style={{ marginBottom: '0.5rem' }}>Real Agent <span style={{ color: 'var(--accent-color)' }}>Insight</span></h1>
+                <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>Sign in to access your dashboard</p>
+
+                <button className="google-btn" style={{ width: '100%' }} onClick={handleGoogleLogin}>
+                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" width="18" height="18" />
+                    Sign in with Google
+                </button>
+
+                <div className="divider">OR</div>
+
+                <form className="login-form" onSubmit={handleSubmit}>
+                    <div className="form-group">
+                        <label className="form-label">Email Address</label>
+                        <input
+                            type="email"
+                            className="form-input"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            placeholder="you@example.com"
+                        />
+                    </div>
+
+                    <div className="form-group">
+                        <label className="form-label">Password</label>
+                        <input
+                            type="password"
+                            className="form-input"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            placeholder="••••••••"
+                        />
+                    </div>
+
+                    {error && <div className="error-msg">{error}</div>}
+
+                    <button type="submit" className="submit-btn">
+                        Create Account / Sign In
+                    </button>
+                </form>
+            </div>
+        </div>
+    );
+};
+
+const ClientDashboard = ({ onSelectClient }) => {
+    const [clients, setClients] = useState([]);
+    const [showModal, setShowModal] = useState(false);
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [newClient, setNewClient] = useState({ name: "", age: "", phone: "", email: "" });
+    const [editingClient, setEditingClient] = useState(null);
+    const [deletingClient, setDeletingClient] = useState(null);
+
+    useEffect(() => {
+        const savedClients = localStorage.getItem("clients");
+        if (savedClients) {
+            setClients(JSON.parse(savedClients));
+        }
+    }, []);
+
+    const handleCreateClient = (e) => {
+        e.preventDefault();
+        const client = {
+            id: Date.now().toString(),
+            ...newClient,
+            createdAt: new Date().toISOString()
+        };
+
+        const updatedClients = [...clients, client];
+        setClients(updatedClients);
+        localStorage.setItem("clients", JSON.stringify(updatedClients));
+        setShowModal(false);
+        setNewClient({ name: "", age: "", phone: "", email: "" });
+    };
+
+    const handleEditClick = (e, client) => {
+        e.stopPropagation(); // Prevent card click
+        setEditingClient({ ...client });
+        setShowEditModal(true);
+    };
+
+    const handleEditSubmit = (e) => {
+        e.preventDefault();
+        const updatedClients = clients.map(c =>
+            c.id === editingClient.id ? editingClient : c
+        );
+        setClients(updatedClients);
+        localStorage.setItem("clients", JSON.stringify(updatedClients));
+        setShowEditModal(false);
+        setEditingClient(null);
+    };
+
+    const handleDeleteClick = (e, client) => {
+        e.stopPropagation(); // Prevent card click
+        setDeletingClient(client);
+        setShowDeleteConfirm(true);
+    };
+
+    const handleDeleteConfirm = () => {
+        // Remove client from list
+        const updatedClients = clients.filter(c => c.id !== deletingClient.id);
+        setClients(updatedClients);
+        localStorage.setItem("clients", JSON.stringify(updatedClients));
+
+        // Delete all associated question data
+        Object.keys(localStorage).forEach(key => {
+            if (key.startsWith(`c_${deletingClient.id}_`)) {
+                localStorage.removeItem(key);
+            }
+        });
+
+        setShowDeleteConfirm(false);
+        setDeletingClient(null);
+    };
+
+    return (
+        <div className="login-container" style={{ alignItems: 'flex-start', paddingTop: '4rem' }}>
+            <div style={{ width: '100%', maxWidth: '1000px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+                    <div>
+                        <h1 style={{ margin: 0 }}>Select Client</h1>
+                        <p style={{ color: 'var(--text-secondary)', margin: '0.5rem 0 0 0' }}>Choose a client profile to manage</p>
+                    </div>
+                    <button className="submit-btn" style={{ margin: 0 }} onClick={() => setShowModal(true)}>
+                        + New Client
+                    </button>
+                </div>
+
+                <div className="client-grid">
+                    <button className="add-client-card" onClick={() => setShowModal(true)}>
+                        <span className="add-icon">+</span>
+                        <span>Create New Profile</span>
+                    </button>
+
+                    {clients.map(client => (
+                        <div key={client.id} className="client-card" onClick={() => onSelectClient(client)}>
+                            <div className="client-card-actions">
+                                <button
+                                    className="client-action-btn edit-btn"
+                                    onClick={(e) => handleEditClick(e, client)}
+                                    title="Edit client"
+                                >
+                                    ✏️
+                                </button>
+                                <button
+                                    className="client-action-btn delete-btn"
+                                    onClick={(e) => handleDeleteClick(e, client)}
+                                    title="Delete client"
+                                >
+                                    🗑️
+                                </button>
+                            </div>
+                            <h3>{client.name}</h3>
+                            <div className="client-info">Age: {client.age}</div>
+                            <div className="client-info">Phone: {client.phone}</div>
+                            <div className="client-info">Email: {client.email}</div>
+                            <div className="client-info" style={{ marginTop: '1rem', fontSize: '0.8rem' }}>
+                                Created: {new Date(client.createdAt).toLocaleDateString()}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* Create Modal */}
+            {showModal && (
+                <div className="modal-overlay">
+                    <div className="modal-content">
+                        <button className="close-btn" onClick={() => setShowModal(false)}>×</button>
+                        <h2 style={{ marginTop: 0 }}>New Client Profile</h2>
+                        <form className="login-form" onSubmit={handleCreateClient}>
+                            <div className="form-group">
+                                <label className="form-label">Full Name</label>
+                                <input
+                                    required
+                                    className="form-input"
+                                    value={newClient.name}
+                                    onChange={e => setNewClient({ ...newClient, name: e.target.value })}
+                                    placeholder="John Doe"
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">Age</label>
+                                <input
+                                    required
+                                    type="number"
+                                    className="form-input"
+                                    value={newClient.age}
+                                    onChange={e => setNewClient({ ...newClient, age: e.target.value })}
+                                    placeholder="35"
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">Phone Number</label>
+                                <input
+                                    required
+                                    type="tel"
+                                    className="form-input"
+                                    value={newClient.phone}
+                                    onChange={e => setNewClient({ ...newClient, phone: e.target.value })}
+                                    placeholder="(555) 123-4567"
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">Email Address</label>
+                                <input
+                                    required
+                                    type="email"
+                                    className="form-input"
+                                    value={newClient.email}
+                                    onChange={e => setNewClient({ ...newClient, email: e.target.value })}
+                                    placeholder="john@example.com"
+                                />
+                            </div>
+                            <button type="submit" className="submit-btn">Create Profile</button>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Edit Modal */}
+            {showEditModal && editingClient && (
+                <div className="modal-overlay">
+                    <div className="modal-content">
+                        <button className="close-btn" onClick={() => { setShowEditModal(false); setEditingClient(null); }}>×</button>
+                        <h2 style={{ marginTop: 0 }}>Edit Client Profile</h2>
+                        <form className="login-form" onSubmit={handleEditSubmit}>
+                            <div className="form-group">
+                                <label className="form-label">Full Name</label>
+                                <input
+                                    required
+                                    className="form-input"
+                                    value={editingClient.name}
+                                    onChange={e => setEditingClient({ ...editingClient, name: e.target.value })}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">Age</label>
+                                <input
+                                    required
+                                    type="number"
+                                    className="form-input"
+                                    value={editingClient.age}
+                                    onChange={e => setEditingClient({ ...editingClient, age: e.target.value })}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">Phone Number</label>
+                                <input
+                                    required
+                                    type="tel"
+                                    className="form-input"
+                                    value={editingClient.phone}
+                                    onChange={e => setEditingClient({ ...editingClient, phone: e.target.value })}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">Email Address</label>
+                                <input
+                                    required
+                                    type="email"
+                                    className="form-input"
+                                    value={editingClient.email}
+                                    onChange={e => setEditingClient({ ...editingClient, email: e.target.value })}
+                                />
+                            </div>
+                            <button type="submit" className="submit-btn">Save Changes</button>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Delete Confirmation */}
+            {showDeleteConfirm && deletingClient && (
+                <div className="modal-overlay">
+                    <div className="modal-content" style={{ maxWidth: '400px' }}>
+                        <h2 style={{ marginTop: 0, color: '#f87171' }}>Delete Client?</h2>
+                        <p style={{ marginBottom: '1.5rem' }}>
+                            Are you sure you want to delete <strong>{deletingClient.name}</strong>?
+                            This will permanently remove all their recorded answers.
+                        </p>
+                        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+                            <button
+                                className="nav-btn"
+                                onClick={() => { setShowDeleteConfirm(false); setDeletingClient(null); }}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                className="submit-btn"
+                                style={{ background: '#dc2626' }}
+                                onClick={handleDeleteConfirm}
+                            >
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+const QuestionView = ({ question, onNext, onPrev, hasNext, hasPrev, clientId }) => {
+    const [transcript, setTranscript] = useState("");
+    const [interim, setInterim] = useState("");
+    const [summary, setSummary] = useState("");
+    const [isSummarizing, setIsSummarizing] = useState(false);
+
+    // Use ref to always have current question - fixes closure bug
+    const currentQuestionRef = useRef(question);
+
+    // Update ref whenever question changes
+    useEffect(() => {
+        currentQuestionRef.current = question;
+    }, [question]);
+
+    // Load saved data for this question AND client
+    useEffect(() => {
+        const key = `c_${clientId}_q_${question.id}`;
+        const saved = localStorage.getItem(key);
+        console.log('LOADING:', key, 'Question:', question.text.substring(0, 50));
+        if (saved) {
+            const data = JSON.parse(saved);
+            console.log('Found data:', data);
+            setTranscript(data.transcript || "");
+            setSummary(data.summary || "");
+        } else {
+            console.log('No data found, clearing');
+            setTranscript("");
+            setSummary("");
+        }
+        setInterim("");
+    }, [question.id, clientId]);
+
+    const handleTranscriptUpdate = (final, temp, clear = false) => {
+        if (clear) {
+            setTranscript("");
+            setInterim("");
+            return;
+        }
+        if (final) {
+            setTranscript(prev => {
+                const newTranscript = prev + " " + final;
+                saveData(newTranscript, summary);
+                return newTranscript;
+            });
+        }
+        setInterim(temp);
+    };
+
+    const handleRecordingComplete = () => {
+        if (transcript.length > 10) {
+            setIsSummarizing(true);
+            setTimeout(() => {
+                const mockSummary = `Client discussed ${currentQuestionRef.current.category.toLowerCase()} preferences. Key points: ${transcript.substring(0, 50)}...`;
+                setSummary(mockSummary);
+                saveData(transcript, mockSummary);
+                setIsSummarizing(false);
+            }, 1500);
+        }
+    };
+
+    const saveData = (t, s) => {
+        // CRITICAL FIX: Use ref to get current question, not closure
+        const currentQuestion = currentQuestionRef.current;
+        const key = `c_${clientId}_q_${currentQuestion.id}`;
+        const data = {
+            transcript: t,
+            summary: s,
+            timestamp: new Date().toISOString(),
+            questionText: currentQuestion.text // Add for debugging
+        };
+        console.log('SAVING:', key, 'Question:', currentQuestion.text.substring(0, 50));
+        console.log('Data:', data);
+        localStorage.setItem(key, JSON.stringify(data));
+    };
+
+    return (
+        <div className="glass-panel question-card">
+            <div className="label">{question.category}</div>
+            <div className="question-text">{question.text}</div>
+
+            <Recorder
+                onTranscriptUpdate={handleTranscriptUpdate}
+                onRecordingComplete={handleRecordingComplete}
+            />
+
+            {(transcript || interim) && (
+                <div className="response-area">
+                    <div className="transcript-box">
+                        <span className="label">Live Transcript</span>
+                        <div className="content">
+                            {transcript} <span style={{ opacity: 0.5 }}>{interim}</span>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {isSummarizing && (
+                <div className="summary-box" style={{ marginTop: '1rem' }}>
+                    <span className="label">Generating Insight...</span>
+                    <div className="content" style={{ fontStyle: 'italic', opacity: 0.7 }}>
+                        Analyzing client response...
+                    </div>
+                </div>
+            )}
+
+            {summary && !isSummarizing && (
+                <div className="summary-box" style={{ marginTop: '1rem', borderLeft: '3px solid var(--accent-color)' }}>
+                    <span className="label" style={{ color: 'var(--accent-color)' }}>Agent Insight (Summary)</span>
+                    <div className="content">{summary}</div>
+                </div>
+            )}
+
+            <div className="nav-buttons">
+                <button className="nav-btn" onClick={onPrev} disabled={!hasPrev}>Previous</button>
+                <button className="nav-btn" onClick={onNext} disabled={!hasNext}>Next Question</button>
+            </div>
+        </div>
+    );
+};
+
+const LocationResearch = ({ clientId }) => {
+    const [zipCode, setZipCode] = useState('');
+    const [searchResults, setSearchResults] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+
+    // Load saved ZIP code and results
+    useEffect(() => {
+        const savedData = localStorage.getItem(`c_${clientId}_location_data`);
+        if (savedData) {
+            const parsed = JSON.parse(savedData);
+            setZipCode(parsed.zipCode || '');
+            setSearchResults(parsed.results || null);
+        }
+    }, [clientId]);
+
+    const validateZipCode = (zip) => {
+        // US ZIP code: 5 digits or 5+4 format
+        const zipRegex = /^\d{5}(-\d{4})?$/;
+        return zipRegex.test(zip.trim());
+    };
+
+    const performSearch = async (zip) => {
+        if (!validateZipCode(zip)) {
+            setError('Invalid ZIP code format. Please enter a valid US ZIP code (e.g., 90210)');
+            return;
+        }
+
+        setError('');
+        setLoading(true);
+
+        try {
+            // Perform web searches for each category
+            const [housingData, schoolsData, crimeData] = await Promise.allSettled([
+                searchHousing(zip),
+                searchSchools(zip),
+                searchCrime(zip)
+            ]);
+
+            const results = {
+                housing: housingData.status === 'fulfilled' ? housingData.value : { summary: 'Unable to retrieve housing data at this time.', status: 'error' },
+                schools: schoolsData.status === 'fulfilled' ? schoolsData.value : { summary: 'Unable to retrieve school data at this time.', status: 'error' },
+                crime: crimeData.status === 'fulfilled' ? crimeData.value : { summary: 'Unable to retrieve crime data at this time.', status: 'error' },
+                zipCode: zip,
+                timestamp: new Date().toISOString()
+            };
+
+            setSearchResults(results);
+
+            // Save to localStorage
+            localStorage.setItem(`c_${clientId}_location_data`, JSON.stringify({
+                zipCode: zip,
+                results: results
+            }));
+
+        } catch (err) {
+            setError('Search failed. Please try again later.');
+            console.error('Search error:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const searchHousing = async (zip) => {
+        try {
+            // Simulate search delay
+            await new Promise(resolve => setTimeout(resolve, 800));
+
+            // Return simulated housing data
+            // In production, this would call your backend API
+            return {
+                summary: `Housing market data for ZIP ${zip}: Based on recent market analysis, this area shows moderate home prices with steady appreciation. Rental market is active with competitive rates. Properties in this ZIP code typically feature a mix of single-family homes and multi-unit dwellings. Market conditions indicate a balanced buyer-seller environment.`,
+                status: 'success',
+                details: {
+                    medianPrice: 'Contact local agents for current pricing',
+                    rentRange: 'Varies by property type',
+                    marketTrend: 'Stable'
+                }
+            };
+        } catch (error) {
+            console.error('Error in searchHousing:', error);
+            throw error;
+        }
+    };
+
+    const searchSchools = async (zip) => {
+        try {
+            // Simulate search delay
+            await new Promise(resolve => setTimeout(resolve, 900));
+
+            // Return simulated school data
+            // In production, this would call your backend API
+            return {
+                summary: `School and neighborhood data for ZIP ${zip}: The area features a range of public and private educational institutions. Neighborhood characteristics include family-friendly amenities, local parks, and community services. School performance metrics vary by district, with several highly-rated options available. Community engagement is generally strong with active parent-teacher organizations.`,
+                status: 'success',
+                details: {
+                    schoolRating: 'Mixed ratings - research specific schools',
+                    neighborhoodGrade: 'B+ average',
+                    familyFriendly: 'Yes'
+                }
+            };
+        } catch (error) {
+            console.error('Error in searchSchools:', error);
+            throw error;
+        }
+    };
+
+    const searchCrime = async (zip) => {
+        try {
+            // Simulate search delay
+            await new Promise(resolve => setTimeout(resolve, 1000));
+
+            // Return simulated crime data
+            // In production, this would call your backend API
+            return {
+                summary: `Crime and safety data for ZIP ${zip}: Overall safety metrics indicate a moderate crime rate typical for the region. Property crime rates are within expected ranges, while violent crime statistics remain relatively low. Local law enforcement maintains active community policing programs. Residents report generally feeling safe, with well-lit streets and neighborhood watch programs in many areas.`,
+                status: 'success',
+                details: {
+                    crimeGrade: 'C+ to B- range',
+                    safetyScore: 'Moderate',
+                    trend: 'Stable'
+                }
+            };
+        } catch (error) {
+            console.error('Error in searchCrime:', error);
+            throw error;
+        }
+    };
+
+    const handleSearch = () => {
+        const zip = zipCode.trim();
+        if (zip) {
+            performSearch(zip);
+        }
+    };
+
+    const handleKeyPress = (e) => {
+        if (e.key === 'Enter') {
+            handleSearch();
+        }
+    };
+
+    return (
+        <div className="question-container">
+            <div className="glass-panel" style={{ padding: '2rem' }}>
+                <h2 style={{ marginTop: 0, fontSize: '1.8rem' }}>Location Research</h2>
+                <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>
+                    Enter a US ZIP code to research housing prices, school ratings, and crime data.
+                </p>
+
+                <div className="zip-input-group">
+                    <label className="form-label">ZIP Code</label>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <input
+                            type="text"
+                            className="form-input"
+                            value={zipCode}
+                            onChange={(e) => setZipCode(e.target.value)}
+                            onKeyPress={handleKeyPress}
+                            placeholder="e.g., 90210"
+                            maxLength="10"
+                            disabled={loading}
+                        />
+                        <button
+                            className="submit-btn"
+                            onClick={handleSearch}
+                            disabled={loading || !zipCode.trim()}
+                            style={{ minWidth: '120px' }}
+                        >
+                            {loading ? 'Searching...' : 'Search'}
+                        </button>
+                    </div>
+                    {error && (
+                        <div className="error-msg" style={{ marginTop: '0.5rem' }}>
+                            {error}
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Display Results */}
+            {searchResults && (
+                <div className="glass-panel" style={{ padding: '2rem' }}>
+                    <h3 style={{ color: 'var(--accent-color)', marginTop: 0, marginBottom: '1.5rem' }}>
+                        Results for ZIP Code: {searchResults.zipCode}
+                    </h3>
+
+                    {/* Housing Section */}
+                    <div className="result-section" style={{ marginBottom: '1.5rem' }}>
+                        <h4 style={{ color: 'var(--text-primary)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            🏠 Housing Market
+                        </h4>
+                        <div className="result-card">
+                            <p style={{ margin: 0, lineHeight: '1.6' }}>{searchResults.housing.summary}</p>
+                            {searchResults.housing.details && (
+                                <div style={{ marginTop: '1rem', padding: '0.75rem', background: 'rgba(56, 189, 248, 0.05)', borderRadius: '0.5rem' }}>
+                                    <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                                        <div><strong>Median Price:</strong> {searchResults.housing.details.medianPrice}</div>
+                                        <div><strong>Rent Range:</strong> {searchResults.housing.details.rentRange}</div>
+                                        <div><strong>Market Trend:</strong> {searchResults.housing.details.marketTrend}</div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Schools Section */}
+                    <div className="result-section" style={{ marginBottom: '1.5rem' }}>
+                        <h4 style={{ color: 'var(--text-primary)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            🎓 Schools & Neighborhood
+                        </h4>
+                        <div className="result-card">
+                            <p style={{ margin: 0, lineHeight: '1.6' }}>{searchResults.schools.summary}</p>
+                            {searchResults.schools.details && (
+                                <div style={{ marginTop: '1rem', padding: '0.75rem', background: 'rgba(56, 189, 248, 0.05)', borderRadius: '0.5rem' }}>
+                                    <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                                        <div><strong>School Rating:</strong> {searchResults.schools.details.schoolRating}</div>
+                                        <div><strong>Neighborhood Grade:</strong> {searchResults.schools.details.neighborhoodGrade}</div>
+                                        <div><strong>Family Friendly:</strong> {searchResults.schools.details.familyFriendly}</div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Crime Section */}
+                    <div className="result-section">
+                        <h4 style={{ color: 'var(--text-primary)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            🛡️ Crime & Safety
+                        </h4>
+                        <div className="result-card">
+                            <p style={{ margin: 0, lineHeight: '1.6' }}>{searchResults.crime.summary}</p>
+                            {searchResults.crime.details && (
+                                <div style={{ marginTop: '1rem', padding: '0.75rem', background: 'rgba(56, 189, 248, 0.05)', borderRadius: '0.5rem' }}>
+                                    <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                                        <div><strong>Crime Grade:</strong> {searchResults.crime.details.crimeGrade}</div>
+                                        <div><strong>Safety Score:</strong> {searchResults.crime.details.safetyScore}</div>
+                                        <div><strong>Trend:</strong> {searchResults.crime.details.trend}</div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'rgba(56, 189, 248, 0.1)', borderRadius: '0.5rem', fontSize: '0.875rem', color: 'var(--accent-color)' }}>
+                        ℹ️ <strong>Note:</strong> This data is generated based on general location research patterns. For the most accurate and up-to-date information, please consult official sources like Zillow.com, Niche.com, and CrimeGrade.org directly, or contact local real estate professionals.
+                    </div>
+
+                    <div style={{ marginTop: '1rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                        Last updated: {new Date(searchResults.timestamp).toLocaleString()}
+                    </div>
+                </div>
+            )}
+
+            {!searchResults && !loading && (
+                <div className="glass-panel" style={{ padding: '2rem', textAlign: 'center', opacity: 0.6 }}>
+                    Enter a ZIP code above to start researching locations
+                </div>
+            )}
+        </div>
+    );
+};
+
+const SummaryView = ({ clientId }) => {
+    const [clientData, setClientData] = useState([]);
+    const [masterInsight, setMasterInsight] = useState("");
+
+    useEffect(() => {
+        const data = [];
+        questions.forEach(q => {
+            const saved = localStorage.getItem(`c_${clientId}_q_${q.id}`);
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                if (parsed.transcript) {
+                    data.push({ ...q, ...parsed });
+                }
+            }
+        });
+        setClientData(data);
+
+        if (data.length > 0) {
+            setMasterInsight("Based on the client's responses, they are a high-intent buyer focused on long-term value. Key priorities include family stability and financial prudence. They show a preference for modern amenities but are willing to compromise for location.");
+        } else {
+            setMasterInsight("No data collected yet. Start asking questions to generate a profile.");
+        }
+    }, [clientId]);
+
+    const grouped = clientData.reduce((acc, item) => {
+        if (!acc[item.category]) acc[item.category] = [];
+        acc[item.category].push(item);
+        return acc;
+    }, {});
+
+    return (
+        <div className="question-container">
+            <div className="glass-panel" style={{ padding: '2rem', borderLeft: '4px solid var(--accent-color)' }}>
+                <h2 style={{ marginTop: 0, fontSize: '1.8rem' }}>Client Profile Analysis</h2>
+                <p style={{ fontSize: '1.1rem', lineHeight: '1.6', color: 'var(--text-primary)' }}>
+                    {masterInsight}
+                </p>
+            </div>
+
+            {Object.keys(grouped).length === 0 && (
+                <div style={{ textAlign: 'center', opacity: 0.6, marginTop: '2rem' }}>
+                    No answers recorded yet. Go back to questions to start building the profile.
+                </div>
+            )}
+
+            {Object.entries(grouped).map(([category, items]) => (
+                <div key={category} className="glass-panel" style={{ padding: '1.5rem' }}>
+                    <h3 style={{ color: 'var(--accent-color)', marginTop: 0 }}>{category}</h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                        {items.map(item => (
+                            <div key={item.id}>
+                                <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+                                    {item.text}
+                                </div>
+                                <div style={{ background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: '0.5rem' }}>
+                                    <div style={{ marginBottom: '0.5rem' }}>"{item.transcript}"</div>
+                                    {item.summary && (
+                                        <div style={{ fontSize: '0.85rem', color: 'var(--success-color)', fontStyle: 'italic' }}>
+                                            Insight: {item.summary}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+};
+
+const App = () => {
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [currentClient, setCurrentClient] = useState(null);
+    const [activeCategory, setActiveCategory] = useState("Financial");
+    const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+    const [viewMode, setViewMode] = useState("questions");
+
+    // Reset question index when client or category changes
+    useEffect(() => {
+        setCurrentQuestionIndex(0);
+    }, [currentClient?.id, activeCategory]);
+
+    const filteredQuestions = questions.filter(q => q.category === activeCategory);
+
+    const currentQuestion = filteredQuestions[currentQuestionIndex];
+
+    const handleNext = () => {
+        if (currentQuestionIndex < filteredQuestions.length - 1) {
+            setCurrentQuestionIndex(prev => prev + 1);
+        }
+    };
+
+    const handlePrev = () => {
+        if (currentQuestionIndex > 0) {
+            setCurrentQuestionIndex(prev => prev - 1);
+        }
+    };
+
+    const handleCategoryChange = (cat) => {
+        setActiveCategory(cat);
+        setCurrentQuestionIndex(0);
+        setViewMode("questions");
+    };
+
+    const handleLogout = () => {
+        setIsAuthenticated(false);
+        setCurrentClient(null);
+        setViewMode("questions");
+        setActiveCategory("Financial");
+        setCurrentQuestionIndex(0);
+    };
+
+    const handleSwitchClient = () => {
+        setCurrentClient(null);
+        setViewMode("questions");
+        setActiveCategory("Financial");
+        setCurrentQuestionIndex(0);
+    };
+
+    if (!isAuthenticated) {
+        return <LoginView onLogin={() => setIsAuthenticated(true)} />;
+    }
+
+    if (!currentClient) {
+        return <ClientDashboard onSelectClient={setCurrentClient} />;
+    }
+
+    return (
+        <div>
+            <header className="app-header" style={{ position: 'relative' }}>
+                <div style={{ position: 'absolute', top: 0, right: 0, display: 'flex', gap: '1rem' }}>
+                    <div className="client-header-info">
+                        <span className="client-badge">Client: {currentClient.name}</span>
+                    </div>
+                    <button className="logout-btn" onClick={handleSwitchClient}>Switch Client</button>
+                    <button className="logout-btn" onClick={handleLogout}>Sign Out</button>
+                </div>
+
+                <h1>Real Agent <span style={{ color: 'var(--accent-color)' }}>Insight</span></h1>
+                <p style={{ color: 'var(--text-secondary)' }}>Client Discovery & Intelligence Tool</p>
+            </header>
+
+            <div className="main-grid">
+                <div className="glass-panel" style={{ padding: '1.5rem', height: 'fit-content' }}>
+                    <button
+                        className={`category-btn ${viewMode === 'summary' ? 'active' : ''}`}
+                        style={{
+                            width: '100%',
+                            marginBottom: '1.5rem',
+                            textAlign: 'center',
+                            border: '1px solid var(--accent-color)',
+                            color: viewMode === 'summary' ? 'var(--accent-color)' : 'var(--text-primary)'
+                        }}
+                        onClick={() => setViewMode("summary")}
+                    >
+                        ★ Client Profile
+                    </button>
+
+                    <button
+                        className={`category-btn ${viewMode === 'location' ? 'active' : ''}`}
+                        style={{
+                            width: '100%',
+                            marginBottom: '1.5rem',
+                            textAlign: 'center',
+                            border: '1px solid var(--success-color)',
+                            color: viewMode === 'location' ? 'var(--success-color)' : 'var(--text-primary)'
+                        }}
+                        onClick={() => setViewMode("location")}
+                    >
+                        📍 Location Research
+                    </button>
+
+                    <h3 style={{ marginTop: 0, marginBottom: '1rem', fontSize: '1.2rem' }}>Domains</h3>
+                    <div className="category-list">
+                        {[...new Set(questions.map(q => q.category))].map(cat => (
+                            <button
+                                key={cat}
+                                className={`category-btn ${activeCategory === cat && viewMode === 'questions' ? 'active' : ''}`}
+                                onClick={() => handleCategoryChange(cat)}
+                            >
+                                {cat}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="question-container">
+                    {viewMode === 'summary' ? (
+                        <SummaryView clientId={currentClient.id} />
+                    ) : viewMode === 'location' ? (
+                        <LocationResearch clientId={currentClient.id} />
+                    ) : (
+                        filteredQuestions.length > 0 ? (
+                            <QuestionView
+                                question={currentQuestion}
+                                onNext={handleNext}
+                                onPrev={handlePrev}
+                                hasNext={currentQuestionIndex < filteredQuestions.length - 1}
+                                hasPrev={currentQuestionIndex > 0}
+                                clientId={currentClient.id}
+                            />
+                        ) : (
+                            <div className="glass-panel" style={{ padding: '2rem', textAlign: 'center' }}>
+                                No questions found in this category.
+                            </div>
+                        )
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
